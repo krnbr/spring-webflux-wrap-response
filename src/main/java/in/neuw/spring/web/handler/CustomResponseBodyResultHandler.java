@@ -47,6 +47,7 @@ public class CustomResponseBodyResultHandler extends ResponseBodyResultHandler {
         Mono<ServiceResponse> body = ((Mono<Object>) result.getReturnValue()).map(o -> {
             ServiceResponse s = new ServiceResponse();
             s.setData(o);
+            s.setStatus(exchange.getResponse().getStatusCode().value());
             return s;
         });
         return writeBody(body, result.getReturnTypeSource().nested(), exchange);
