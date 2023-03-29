@@ -31,10 +31,10 @@ public class CustomResponseBodyResultHandler extends ResponseBodyResultHandler {
         var annotations = result.getReturnTypeSource().getDeclaringClass().getAnnotations();
 
         if (Arrays.stream(classAnnotations).anyMatch(a -> a.annotationType() == ApiResponse.class)) {
-            log.info("$className is marked with ApiResponse annotation");
+            log.info("{} is marked with ApiResponse annotation", className);
             return true;
         } else if (Arrays.stream(methodAnnotations).anyMatch(a -> a.annotationType() == ApiResponse.class)) {
-            log.info("$methodName inside $className is marked with ApiResponse annotation");
+            log.info("{} inside {} is marked with ApiResponse annotation", methodName, className);
             return true;
         }
 
@@ -43,23 +43,20 @@ public class CustomResponseBodyResultHandler extends ResponseBodyResultHandler {
 
     @Override
     public Mono<Void> handleResult(ServerWebExchange exchange, HandlerResult result) {
+        ServiceResponse s = new ServiceResponse();
+        s.setMethod(exchange.getRequest().getMethod().name());
+        s.setStatus(exchange.getResponse().getStatusCode().value());
+        s.setCorrelationId(exchange.getAttribute("correlation-id"));
         var adapter = getAdapter(result);
         // modify the result as you want
         if (adapter != null) { // if the response was wrapped inside Mono?
             Mono<ServiceResponse> body = ((Mono<Object>) result.getReturnValue()).map(o -> {
-                ServiceResponse s = new ServiceResponse();
                 s.setData(o);
-                s.setMethod(exchange.getRequest().getMethod().name());
-                s.setStatus(exchange.getResponse().getStatusCode().value());
                 return s;
             });
             return writeBody(body, result.getReturnTypeSource().nested(), exchange);
         } else { // if the response was not wrapped inside Mono
-            ServiceResponse s = new ServiceResponse();
             s.setData(result.getReturnValue());
-            s.setMethod(exchange.getRequest().getMethod().name());
-            s.setStatus(exchange.getResponse().getStatusCode().value());
-
             Mono<ServiceResponse> body = Mono.just(s);
             return writeBody(body, result.getReturnTypeSource().nested(), exchange);
         }
