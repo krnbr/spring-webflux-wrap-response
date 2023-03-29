@@ -43,13 +43,25 @@ public class CustomResponseBodyResultHandler extends ResponseBodyResultHandler {
 
     @Override
     public Mono<Void> handleResult(ServerWebExchange exchange, HandlerResult result) {
+        var adapter = getAdapter(result);
         // modify the result as you want
-        Mono<ServiceResponse> body = ((Mono<Object>) result.getReturnValue()).map(o -> {
+        if (adapter != null) { // if the response was wrapped inside Mono?
+            Mono<ServiceResponse> body = ((Mono<Object>) result.getReturnValue()).map(o -> {
+                ServiceResponse s = new ServiceResponse();
+                s.setData(o);
+                s.setMethod(exchange.getRequest().getMethod().name());
+                s.setStatus(exchange.getResponse().getStatusCode().value());
+                return s;
+            });
+            return writeBody(body, result.getReturnTypeSource().nested(), exchange);
+        } else { // if the response was not wrapped inside Mono
             ServiceResponse s = new ServiceResponse();
-            s.setData(o);
+            s.setData(result.getReturnValue());
+            s.setMethod(exchange.getRequest().getMethod().name());
             s.setStatus(exchange.getResponse().getStatusCode().value());
-            return s;
-        });
-        return writeBody(body, result.getReturnTypeSource().nested(), exchange);
+
+            Mono<ServiceResponse> body = Mono.just(s);
+            return writeBody(body, result.getReturnTypeSource().nested(), exchange);
+        }
     }
 }
